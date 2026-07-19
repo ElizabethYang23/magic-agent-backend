@@ -56,11 +56,23 @@ def embed_query(query: str) -> list[float]:
 
 
 def retrieve_relevant_chunks(query: str, match_count: int = 5) -> list[dict]:
+    """
+    Uses hybrid search: keyword search + vector search, blended together.
+    Falls back to pure vector search (match_trick_chunks) if you haven't
+    run the hybrid_search_trick_chunks schema addition yet.
+    """
     query_embedding = embed_query(query)
-    response = supabase.rpc(
-        "match_trick_chunks",
-        {"query_embedding": query_embedding, "match_count": match_count},
-    ).execute()
+    try:
+        response = supabase.rpc(
+            "hybrid_search_trick_chunks",
+            {"query_text": query, "query_embedding": query_embedding, "match_count": match_count},
+        ).execute()
+    except Exception:
+        # Schema not updated yet - fall back to vector-only search
+        response = supabase.rpc(
+            "match_trick_chunks",
+            {"query_embedding": query_embedding, "match_count": match_count},
+        ).execute()
     return response.data
 
 
@@ -111,6 +123,6 @@ if __name__ == "__main__":
     example_answer = ask_agent(
         mode="routine",
         user_message="Design a 3-minute coin routine for a beginner",
-        user_id="fcd3bef6-8a83-487f-81f8-0b63bc603ef4",
+        user_id="REPLACE_WITH_A_REAL_USER_ID",
     )
     print(example_answer)
